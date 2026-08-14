@@ -2,9 +2,10 @@ NAME		= CHIP-8_emulator
 EXE		= ./${NAME}
 SRCS		= ${wildcard srcs/*.c}
 OBJS		= ${SRCS:.c=.o}
-CC		= cc
+CC		= gcc
 GDB		= gdb
-CFLAGS		= -Wall -Wextra -Werror
+CFLAGS		= -Wall -Wextra -Werror ${shell pkg-config --cflags sdl2}
+LDFLAGS		= ${shell pkg-config --libs sdl2}
 CPPFLAGS	= -MMD -MP
 RM		= rm -f
 
@@ -21,7 +22,7 @@ debug: re
 	${CC} ${CFLAGS} ${CPPFLAGS} -c $< -o $@
 
 ${NAME}: ${OBJS}
-	${CC} ${CFLAGS} ${OBJS} -o ${NAME}
+	${CC} ${CFLAGS} ${OBJS} -o ${NAME} ${LDFLAGS}
 
 clean:
 	${RM} ${OBJS} ${OBJS:.o=.d}
