@@ -1,84 +1,119 @@
 #include "chip8.h"
 
-void input_err(int ac, char **av) {
-  if (ac != 2) {
-    if (ac == 1)
-      printf("Please specify a .ch8 ROM to load.\n");
-    else
-      printf("Too many arguments.\n");
-    exit(1);
-  }
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-  size_t len = strlen(av[1]);
-  if (len > 4 && strcmp(av[1] + len - 4, ".ch8") == 0)
-    return;
-  else
-    printf("Invalid file\n");
-  exit(1);
+static int has_ch8_extension(const char *path) {
+    size_t len;
+
+    len = strlen(path);
+    return len >= 4 && strcmp(path + len - 4, ".ch8") == 0;
 }
 
-void init_fontset(unsigned char *dest) {
-  const unsigned char font[80] = {
-      0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-      0x20, 0x60, 0x20, 0x20, 0x70, // 1
-      0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-      0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-      0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-      0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-      0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-      0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-      0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-      0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-      0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-      0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-      0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-      0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-      0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-      0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-  };
-  memcpy(dest, font, 80);
+static void validate_args(int argc, char **argv) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s ROM.ch8\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (!has_ch8_extension(argv[1])) {
+        fprintf(stderr, "Invalid ROM: expected a .ch8 file\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
-void init(chip8 *ch8, const char *filename) {
-  memset(ch8, 0, sizeof(chip8));
+static void init_fontset(t_chip8 *chip8) {
+    static const uint8_t font[CHIP8_FONT_SIZE] = {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
 
-  ch8->pc = 0x200;
-  ch8->opcode = 0;
-  ch8->I = 0;
-  ch8->sp = 0;
-  ch8->delay_timer = 0;
-  ch8->sound_timer = 0;
-  init_fontset(&ch8->memory[0x50]);
+    memcpy(&chip8->memory[CHIP8_FONT_START], font, sizeof(font));
+}
 
-  FILE *file = fopen(filename, "rb"); // rb = read binary
+static int load_rom(t_chip8 *chip8, const char *path) {
+    FILE *file;
+    long size;
+    size_t bytes_read;
 
-  if (file == NULL) {
-    printf("Could not open %s\n", filename);
-    exit(1);
-  }
+    file = fopen(path, "rb");
+    if (file == NULL) {
+        perror(path);
+        return -1;
+    }
 
-  fseek(file, 0, SEEK_END);
-  long size = ftell(file);
-  rewind(file);
+    if (fseek(file, 0, SEEK_END) != 0) {
+        perror("fseek");
+        fclose(file);
+        return -1;
+    }
 
-  if (size > (4096 - 0x200)) {
-    printf("%s is too large\n", filename);
+    size = ftell(file);
+    if (size < 0) {
+        perror("ftell");
+        fclose(file);
+        return -1;
+    }
+
+    if ((size_t)size > CHIP8_ROM_MAX_SIZE) {
+        fprintf(stderr, "%s: ROM is too large\n", path);
+        fclose(file);
+        return -1;
+    }
+
+    rewind(file);
+
+    bytes_read = fread(&chip8->memory[CHIP8_PROGRAM_START], 1, (size_t)size, file);
+
+    if (bytes_read != (size_t)size) {
+        fprintf(stderr, "%s: failed to read ROM\n", path);
+        fclose(file);
+        return -1;
+    }
+
     fclose(file);
-    exit(1);
-  }
-
-  size_t read_bytes = fread(&ch8->memory[0x200], 1, size, file);
-  if (read_bytes != (size_t)size) {
-    printf("Could not read %s\n", filename);
-    fclose(file);
-    exit(1);
-  }
-
-  fclose(file);
+    return 0;
 }
 
-int main(int ac, char **av) {
-  input_err(ac, av);
-  chip8 ch8;
+int chip8_init(t_chip8 *chip8, const char *rom_path) {
+    memset(chip8, 0, sizeof(*chip8));
 
-  init(&ch8, av[1]);
+    chip8->pc = CHIP8_PROGRAM_START;
+
+    init_fontset(chip8);
+
+    if (load_rom(chip8, rom_path) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int main(int argc, char **argv) {
+    t_chip8 chip8;
+
+    validate_args(argc, argv);
+
+    if (chip8_init(&chip8, argv[1]) != 0) {
+        return EXIT_FAILURE;
+    }
+
+    printf("Loaded ROM: %s\n", argv[1]);
+
+    return EXIT_SUCCESS;
+}
