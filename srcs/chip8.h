@@ -1,6 +1,11 @@
 #ifndef CHIP8_H
 #define CHIP8_H
 
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 typedef struct CHIP8 {
   unsigned short opcode; // store current opcode //
   unsigned char memory[4096];
@@ -14,11 +19,11 @@ typedef struct CHIP8 {
           // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F) //
           // 0x200-0xFFF - Program ROM and work RAM //
 
-  unsigned char gfx[64 * 32] // 2048px //
+  unsigned char gfx[64 * 32]; // 2048px //
 
-      // timer registers count at 60 Hz, when set above zero they will count
-      // down to zero. //
-      unsigned char delay_timer;
+  // timer registers count at 60 Hz, when set above zero they will count
+  // down to zero. //
+  unsigned char delay_timer;
   unsigned char sound_timer;
 
   unsigned short stack[16]; // stack is used to remember the current location
