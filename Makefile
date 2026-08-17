@@ -60,7 +60,7 @@ san:
 
 compiledb:
 	$(MAKE) fclean
-	compiledb -n make
+	bear -- $(MAKE)
 
 clean:
 	$(RM) $(OBJ_DIR)
