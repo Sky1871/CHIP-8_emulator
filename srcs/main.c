@@ -49,10 +49,76 @@ int main(int argc, char **argv) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = 1;
+            } else if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
+                uint8_t state = (e.type == SDL_KEYDOWN) ? 1 : 0;
+
+                switch (e.key.keysym.sym) {
+                    case SDLK_1:
+                        chip8.keys[0x1] = state;
+                        break;
+                    case SDLK_2:
+                        chip8.keys[0x2] = state;
+                        break;
+                    case SDLK_3:
+                        chip8.keys[0x3] = state;
+                        break;
+                    case SDLK_4:
+                        chip8.keys[0xC] = state;
+                        break;
+
+                    case SDLK_q:
+                        chip8.keys[0x4] = state;
+                        break;
+                    case SDLK_w:
+                        chip8.keys[0x5] = state;
+                        break;
+                    case SDLK_e:
+                        chip8.keys[0x6] = state;
+                        break;
+                    case SDLK_r:
+                        chip8.keys[0xD] = state;
+                        break;
+
+                    case SDLK_a:
+                        chip8.keys[0x7] = state;
+                        break;
+                    case SDLK_s:
+                        chip8.keys[0x8] = state;
+                        break;
+                    case SDLK_d:
+                        chip8.keys[0x9] = state;
+                        break;
+                    case SDLK_f:
+                        chip8.keys[0xE] = state;
+                        break;
+
+                    case SDLK_z:
+                        chip8.keys[0xA] = state;
+                        break;
+                    case SDLK_x:
+                        chip8.keys[0x0] = state;
+                        break;
+                    case SDLK_c:
+                        chip8.keys[0xB] = state;
+                        break;
+                    case SDLK_v:
+                        chip8.keys[0xF] = state;
+                        break;
+                }
             }
         }
         for (int i = 0; i < 10; i++) {
             cycle(&chip8);
+        }
+
+        if (chip8.delay_timer > 0) {
+            chip8.delay_timer--;
+        }
+        if (chip8.sound_timer > 0) {
+            if (chip8.sound_timer == 1) {
+                printf("\a");
+            }
+            chip8.sound_timer--;
         }
 
         for (int i = 0; i < CHIP8_SCREEN_SIZE; i++) {
