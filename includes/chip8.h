@@ -50,3 +50,4 @@ typedef struct s_chip8 {
 } t_chip8;
 
 int chip8_init(t_chip8 *chip8, const char *rom_path);
+void cycle(t_chip8 *chip8);
